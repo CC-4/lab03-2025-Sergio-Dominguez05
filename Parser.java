@@ -82,10 +82,22 @@ public class Parser {
         /* El codigo de esta seccion se explicara en clase */
 
         switch(op.getId()) {
+            case Token.LPAREN:
+                return 0;
         	case Token.PLUS:
         		return 1;
+            case Token.MINUS:
+                return 1;
         	case Token.MULT:
         		return 2;
+            case Token.DIV:
+        		return 2;
+            case Token.MOD:
+        		return 2;
+            case Token.EXP:
+        		return 3;
+            case Token.UNARY:
+        		return 4;
         	default:
         		return -1;
         }
@@ -93,7 +105,7 @@ public class Parser {
 
     private void popOp() {
         Token op = this.operadores.pop();
-
+        int id = op.getId();
         /* TODO: Su codigo aqui */
 
         /* El codigo de esta seccion se explicara en clase */
@@ -102,20 +114,79 @@ public class Parser {
         	double a = this.operandos.pop();
         	double b = this.operandos.pop();
         	// print para debug, quitarlo al terminar
-        	System.out.println("suma " + a + " + " + b);
         	this.operandos.push(a + b);
         } else if (op.equals(Token.MULT)) {
         	double a = this.operandos.pop();
         	double b = this.operandos.pop();
         	// print para debug, quitarlo al terminar
-        	System.out.println("mult " + a + " * " + b);
         	this.operandos.push(a * b);
+        }
+        else if (op.equals(Token.MINUS)) {
+        	double a = this.operandos.pop();
+        	double b = this.operandos.pop();
+        	// print para debug, quitarlo al terminar
+        	this.operandos.push(a - b);
+        }
+        else if (op.equals(Token.DIV)) {
+        	double a = this.operandos.pop();
+        	double b = this.operandos.pop();
+        	// print para debug, quitarlo al terminar
+        	this.operandos.push(a / b);
+        }
+        else if (op.equals(Token.MOD)) {
+        	double a = this.operandos.pop();
+        	double b = this.operandos.pop();
+        	// print para debug, quitarlo al terminar
+        	this.operandos.push(a % b);
+        }
+        else if (op.equals(Token.EXP)) {
+        	double a = this.operandos.pop();
+        	double b = this.operandos.pop();
+        	// print para debug, quitarlo al terminar
+        	this.operandos.push(Math.pow(b, a));
+        }
+        else if (op.equals(Token.UNARY)) {
+        	double a = this.operandos.pop();
+        	// print para debug, quitarlo al terminar
+        	this.operandos.push(-a);
         }
     }
 
     private void pushOp(Token op) {
         /* TODO: Su codigo aqui */
+        int id = op.getId();
 
+        if (id == Token.LPAREN){
+            this.operadores.push(op);
+        }
+        if (id == Token.RPAREN){
+            while(this.operadores.peek().getId() != Token.LPAREN){
+                popOp();
+            }
+            if (this.operadores.peek().getId() != Token.LPAREN){
+                this.operadores.pop();
+            }
+            return;
+        }
+        Token t = op;
+        if (id == Token.MINUS){
+            t = new Token(Token.UNARY);
+        }
+        int p = pre(t);
+        while (this.operadores != null){
+            Token top = this.operadores.peek();
+            if (top.getId() == Token.LPAREN){
+                break;
+            }
+            int ptop = pre(top);
+            boolean quitar = (ptop > p) || (ptop == p && rAsociative(t));
+            if (quitar == true){
+                popOp();
+            } else {
+                break;
+            }
+        }
+        this.operadores.push(t);
         /* Casi todo el codigo para esta seccion se vera en clase */
     	
     	// Si no hay operandos automaticamente ingresamos op al stack
@@ -128,14 +199,76 @@ public class Parser {
         	// Al terminar operaciones pendientes, guardamos op en stack
 
     }
-
+    private int idSig(){
+        return this.tokens.get(this.next).getId();
+    }
     private boolean S() {
         return E() && term(Token.SEMI);
     }
 
     private boolean E() {
+        if (!B()){
+            return false;
+        }else {
+            return A();
+        }
+    }
+    private boolean A(){
+        if (idSig() == Token.PLUS || idSig() == Token.MINUS) {
+            int op = idSig();
+            if (!term(op)) return false;
+            if (!B()) return false;
+            return A();
+        }
+        return true;
+    }
+    private boolean B() {
+        if (!D()) return false;
+        return C();
+    }
+    private boolean C() {
+        if (idSig() == Token.MULT || idSig() == Token.DIV || idSig() == Token.MOD) {
+            int op = idSig();
+            if (!term(op)) return false;
+            if (!D()) return false;
+            return C();
+        }
+        return true;
+    }
+    private boolean D() {
+        if (!G()) return false;
+        return F();
+    }
+    private boolean F() {
+        if (idSig() == Token.EXP) {
+            if (!term(Token.EXP)) return false;
+            if (!G()) return false;
+            return F();
+        }
+        return true; 
+    }
+    private boolean G() {
+        if (idSig() == Token.UNARY) {
+            if (!term(Token.UNARY)) return false;
+            return H();
+        }
+        return I();
+    }
+    private boolean H() {
+        return I();
+    }
+    private boolean I() {
+        if (idSig() == Token.LPAREN) {
+            return term(Token.LPAREN) && E() && term(Token.RPAREN);
+        } else if (idSig() == Token.NUMBER) {
+            return term(Token.NUMBER);
+        }
         return false;
     }
 
+    private boolean rAsociative(Token op){
+        int id = op.getId();
+        return (id == Token.EXP) || (id == Token.UNARY);
+    }
     /* TODO: sus otras funciones aqui */
 }
